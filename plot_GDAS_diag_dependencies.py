@@ -18,6 +18,7 @@ import copy
 #   calc_tstat_mean    Compute t-test significance on means between 2 samples
 #   calc_fstat_mse     Compute f-test significance on mean squared error between 2 samples
 #   listIntersection   Returns the list containing shared elements from 2 lists (i.e. intersection of lists)
+#   read_errtable      Reads prepobs_errtable.global, returns vectors of pressure and error-value for chosen ob-type, variable
 #
 # Plotting Functions
 #   OmF_histogram_plot Plots histograms of 2 OmF samples, provides statistics on t-test significance of
@@ -135,6 +136,79 @@ def listIntersection(lst1, lst2):
     temp = set(lst2)
     lst3 = [value for value in lst1 if value in temp]
     return lst3
+
+def read_errtable(tblfile,obtype,var):
+    # Given a prepobs_errtable.global file, an ob-type, and a variable, returns vectors of
+    # pressure level and assigned errors.
+    #  INPUTS
+    #    tblfile: filename for prepobs_errtable.global file
+    #    obtype: integer observation type
+    #    var: 'w' == wind (in m/s)
+    #         't' == temperature (in K)
+    #         'rh' == moisture (in RH)
+    #         'pw' == precipitable water (in kg/m^2, or mm)
+    #         'ps' == surface pressure (in hPa)
+    #  OUTPUTS
+    #    pvec: vector of pressures for each level of table
+    #    evec: vector of error-vals for each level of table
+    #
+    #  NOTES:
+    #   ' q' requires conversion of table from tens of percent RH to percent RH
+    #    Assumes standard 33 level table from prepobs_errtable.global
+    #    
+    #  DEPENDENCIES: numPy
+    #
+    nlev=33
+    # Initialize outputs as NaN arrays
+    pvec=np.nan*np.ones((nlev,))
+    evec=np.nan*np.ones((nlev,))
+    # Identify var and assert table column for read, if not of acceptable type return NaN
+    # arrays and warn
+    # From Table 4.10 in:
+    # https://dtcenter.org/sites/default/files/community-code/gsi/docs/users-guide/GSIUserGuide_v3.5.pdf
+    if var=='t':
+        ecol=1
+    elif var=='rh':
+        ecol=2
+    elif var=='w':
+        ecol=3
+    elif var=='ps':
+        ecol=4
+    elif var=='pw':
+        ecol=5
+    else:
+        print('var '+var+' not acceptable type [t,rh,w,ps,pw], exiting')
+        return pvec, evec
+    #
+    with open(tblfile,'r') as tblhdl:
+        try:
+            # Dump entire content of file to string
+            tbls=tblhdl.read()
+            # Define search-string for obtype
+            srch_str=str(obtype)+' OBSERVATION TYPE'
+            # Find header-line based on srch_str up to newline
+            hdr_beg=tbls.find(srch_str,0,len(tbls))
+            hdr_end=tbls.find('\n',hdr_beg)
+            # Initialize last_end as end of header
+            last_end=hdr_end
+            # Loop over nlev
+            for i in range(nlev):
+                # Define table-line from character following last_end to newline
+                tbl_beg=last_end+1
+                tbl_end=tbls.find('\n',tbl_beg)
+                tbl_line=tbls[tbl_beg:tbl_end]
+                # Extract pvec from 0th element and evec from ecol-th element
+                pvec[i]=float(tbl_line.split()[0])
+                evec[i]=float(tbl_line.split()[ecol])
+                # If ecol==2, this is in RH/10 space, convert to RH space
+                if ecol==2:
+                    evec[i]=10.*evec[i]
+                # Assign end of table-line to last_end
+                last_end=tbl_end
+            return pvec, evec
+        except:
+            print('error in table-read, exiting')
+            return pvec, evec
 
 def OmF_histogram_plot(OmF1,OmF2,name1='SET1',name2='SET2',titleStr='TITLE',figax=None):
     # Inputs:
