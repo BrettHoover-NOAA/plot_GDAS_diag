@@ -309,7 +309,7 @@ def OmF_histogram_plot(OmF1,OmF2,name1='SET1',name2='SET2',titleStr='TITLE',figa
     
     return figreturn
 
-def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',profTitleStr='TITLE',profax=None,countax=None):
+def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',titleStr='TITLE',figax=None):
     # Inputs:
     #   OmF1: vector of OmF values for set-1
     #   pre1: vector of pressure values for set-1
@@ -317,9 +317,8 @@ def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',profTitleStr=
     #   pre2: vector of pressure values for set-2
     #   name1: string for set-1 name on plot
     #   name2: string for set-2 name on plot
-    #   profTitleStr: string for profile figure (panel) title
-    #   profax: profile figure axis, or None for no specified axis (generate a figure, axis)
-    #   countax: ob-count figure axis, or None for no specified axis (generate a figure, axis)
+    #   titleStr: string for profile figure (panel) title
+    #   figax: profile figure axis, or None for no specified axis (generate a figure, axis)
     # Outputs:
     #   figreturn: returned axis, if figax specified, otherwise returned figure
     #
@@ -327,14 +326,14 @@ def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',profTitleStr=
     # Example use: No figax provided, returns figure handle
     #
     # fighdl=OmF_profile_plot(old_umg,old_pre,new_umg,new_pre,name1='old data',name2='new data',
-    #                         profTitleStr='OmF U')
+    #                         titleStr='OmF U')
     # fighdl.savefig('old_vs_new.png')
     #
-    # Example use: figax provided for each of 2-panels, returns axes
+    # Example use: figax provided for 1 of 2-panels, returns axis (second axis is blank in this ex)
     #
     # fighdl,axhdls=plt.subplots(nrows=1,ncols=2,figsize=(20,9))
     # filledaxs=OmF_profile_plot(old_umg,old_pre,new_umg,new_pre,name1='old data',name2='new data',
-    #                            profTitleStr='OmF U',profax=axs[0],countax=axs[1])
+    #                            titleStr='OmF U',figax=axs[0])
     # fighdl.savefig('old_vs_new_2panel.png')
     #
     # Define pressure layers: 50 hPa layers from 1025–125 hPa
@@ -379,15 +378,13 @@ def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',profTitleStr=
             rmse_ft_prof[i]=OmF_ft_p
             bias_tt_prof[i]=OmF_tt_p
     # Generate plot axes
-    if (profax==None)|(countax==None):
+    if (figax==None):
         pax=plt.figure(figsize=(16,9))
         ax1=pax.add_axes([0.04,0.,0.45,1.])
-        ax2=pax.add_axes([0.54,0.,0.45,1.])
         figreturn=pax
     else:
-        ax1=profax
-        ax2=countax
-        figreturn=(ax1,ax2)
+        ax1=figax
+        figreturn=ax1
     # ax1: rmse, bias, and significance profiles
     ax1.plot(OmF1_rmse_prof,pre_mids,color='blue',linewidth=3.)
     ax1.plot(OmF1_bias_prof,pre_mids,color='blue',linewidth=3.,linestyle='--')
@@ -402,15 +399,69 @@ def OmF_profile_plot(OmF1,pre1,OmF2,pre2,name1='SET1',name2='SET2',profTitleStr=
     ax1.plot(np.zeros((n_plevs,)),pre_mids,color='black',linewidth=1.,label='_nolegend_')
     ax1.set_yticks(ticks=pre_mids[::2])
     ax1.invert_yaxis()
-    ax1.set_title(profTitleStr)
+    ax1.set_title(titleStr)
     ax1.legend([name1+' rmse',name1+' bias',name2+' rmse',name2+' bias'])
-    # ax2: Ob-count by layer
-    ax2.barh(y=pre_mids-5,width=0.001*OmF1_nobs_prof,height=10.0,facecolor='blue')
-    ax2.barh(y=pre_mids+5,width=0.001*OmF2_nobs_prof,height=10.0,facecolor='orange')
-    ax2.set_yticks(ticks=pre_mids[::2])
-    ax2.invert_yaxis()
-    ax2.set_title('Ob Count (Thousands)')
-    ax2.legend([name1,name2])
     return figreturn
 
+def count_profile_plot(pre1,pre2,name1='SET1',name2='SET2',titleStr='Ob Count (thousands)',figax=None):
+    # Inputs:
+    #   pre1: vector of pressure values for set-1
+    #   pre2: vector of pressure values for set-2
+    #   name1: string for set-1 name on plot
+    #   name2: string for set-2 name on plot
+    #   titleStr: string for profile figure (panel) title
+    #   figax: profile figure axis, or None for no specified axis (generate a figure, axis)
+    # Outputs:
+    #   figreturn: returned axis, if figax specified, otherwise returned figure
+    #
+    #
+    # Example use: No figax provided, returns figure handle
+    #
+    # fighdl=count_profile_plot(old_pre,new_pre,name1='old data',name2='new data',
+    #                         titleStr='Counts (thousands): U')
+    # fighdl.savefig('old_vs_new.png')
+    #
+    # Example use: figax provided for 1 of 2-panels, returns axis
+    #
+    # fighdl,axhdls=plt.subplots(nrows=1,ncols=2,figsize=(20,9))
+    # filledaxs=OmF_profile_plot(old_pre,new_pre,name1='old data',name2='new data',
+    #                            titleStr='Counts (thousands): U',figax=axs[1])
+    # fighdl.savefig('old_vs_new_2panel.png')
+    #
+    # Define pressure layers: 50 hPa layers from 1025–125 hPa
+    pre_edge=np.arange(1025.,125.1,-50.)
+    pre_maxs=pre_edge[0:-1]
+    pre_mins=pre_edge[1:]
+    pre_mids=0.5*(pre_maxs+pre_mins)
+    n_plevs=np.size(pre_mids)
+    # Initialize OmF rmse and bias profiles, and ob-counts, for OmF1 and OmF2
+    Nobs1_prof=np.nan*np.zeros((n_plevs,))
+    Nobs2_prof=np.nan*np.zeros((n_plevs,))
+    # Loop over pressure levels
+    for i in range(n_plevs):
+        # Define minimum/maximum pressure on level, collect observations
+        # within pressure interval for OmF1 and OmF2
+        pmin=pre_mins[i]
+        pmax=pre_maxs[i]
+        idx1=np.where((pre1<pmax)&(pre1>=pmin))[0]
+        idx2=np.where((pre2<pmax)&(pre2>=pmin))[0]
+        # Compute nobs for each profile at level i
+        Nobs1_prof[i]=np.size(idx1)
+        Nobs2_prof[i]=np.size(idx2)
+    # Generate plot axes
+    if (figax==None):
+        pax=plt.figure(figsize=(16,9))
+        ax2=pax.add_axes([0.54,0.,0.45,1.])
+        figreturn=pax
+    else:
+        ax2=figax
+        figreturn=ax2
+    # ax2: Ob-count by layer
+    ax2.barh(y=pre_mids-5,width=0.001*Nobs1_prof,height=10.0,facecolor='blue')
+    ax2.barh(y=pre_mids+5,width=0.001*Nobs2_prof,height=10.0,facecolor='orange')
+    ax2.set_yticks(ticks=pre_mids[::2])
+    ax2.set_title(titleStr)
+    ax2.legend([name1,name2])
+    ax2.invert_yaxis()
+    return figreturn
 
